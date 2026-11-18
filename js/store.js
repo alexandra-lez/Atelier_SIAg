@@ -68,8 +68,20 @@ window.makeStore = (() => {
 
   return async function makeStore(cfg) {
     if (cfg) {
-      try { return await firebaseStore(cfg); }
-      catch (e) { console.warn(e); window.toast && window.toast("Connexion à Firebase impossible. Mode démonstration activé."); }
+      try { return await Promise.race([firebaseStore(cfg), new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error("délai dépassé"), { code: "timeout" })), 15000))]); }
+      catch (e) {
+        console.warn(e);
+        const code = (e && e.code) || "", msg = String((e && e.message) || "");
+        const why =
+          /configuration-not-found/.test(code) ? "Dans Firebase, ouvrez Authentication et cliquez sur « Commencer », puis activez « Anonyme »." :
+          /operation-not-allowed|admin-restricted-operation/.test(code) ? "Dans Firebase, Authentication › Mode de connexion : activez « Anonyme »." :
+          /unauthorized-domain/.test(code) ? "Dans Firebase, Authentication › Paramètres › Domaines autorisés : ajoutez " + location.hostname + "." :
+          /api-key-not-valid|invalid-api-key/.test(code) ? "La clé apiKey de config.js est incorrecte : recopiez-la depuis Firebase." :
+          /network-request-failed/.test(code) || /import|fetch|module/i.test(msg) ? "Le réseau bloque Firebase (pare-feu, VPN ou bloqueur de contenu). Essayez un autre réseau." :
+          code === "timeout" ? "Firebase ne répond pas : vérifiez la connexion Internet." : "Erreur : " + (code || msg || "inconnue") + ".";
+        window.FIREBASE_ERROR = why;
+        window.toast && window.toast("Connexion à Firebase impossible. " + why, 15000);
+      }
     }
     return demoStore();
   };
