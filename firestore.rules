@@ -1,0 +1,29 @@
+rules_version = '2';
+
+// Règles de sécurité de l'exercice de posture.
+// Chaque appareil se connecte de façon anonyme (aucun compte à créer).
+// - Seul le navigateur qui a créé la séance peut la piloter.
+// - Chaque personne ne peut lire et écrire que SA fiche : les portraits restent privés.
+// - L'animation lit toutes les fiches et publie dans la séance un résumé anonyme
+//   (valeurs triées, sans identifiant) et la composition des équipes (prénom et profil).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function ownerOf(code) {
+      return get(/databases/$(database)/documents/sessions/$(code)).data.owner == request.auth.uid;
+    }
+
+    match /sessions/{code} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.owner == request.auth.uid;
+      allow update, delete: if signedIn() && resource.data.owner == request.auth.uid;
+
+      match /people/{uid} {
+        // Sa propre fiche, ou toutes les fiches pour l'animation (y compris les participants fictifs du mode essai)
+        allow read, create, update, delete: if signedIn() && (request.auth.uid == uid || ownerOf(code));
+      }
+    }
+  }
+}
