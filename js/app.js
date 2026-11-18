@@ -15,7 +15,7 @@ const MIN_GROUP = 5; // le portrait du groupe n'apparaît qu'à partir de 5 port
 const IN_PREVIEW = !!(window.claude && typeof window.claude.use === "function") || /claudeusercontent|claude\.ai/.test(location.hostname);
 const ls = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
 
-window.toast = msg => { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(window.toast.h); window.toast.h = setTimeout(() => { t.hidden = true; }, 3200); };
+window.toast = (msg, ms = 3200) => { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(window.toast.h); window.toast.h = setTimeout(() => { t.hidden = true; }, ms); };
 async function busy(btn, label, fn, done) {
   const old = btn.innerHTML; btn.disabled = true; btn.textContent = label;
   try { await fn(); toast("Document prêt. Vérifiez vos téléchargements."); if (done) done(); }
@@ -141,7 +141,7 @@ function renderLanding() {
     <form class="card join" id="joinForm"><label class="f"><span>Code de la séance</span><small>La personne qui anime vous le donne.</small>
       <input type="text" id="joinCode" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Ex. : K7QM" aria-describedby="joinErr"></label>
       <p class="err" id="joinErr" role="alert"></p><button class="btn big block" type="submit">Entrer ${ico("arrowR")}</button>
-      ${ST.store.kind === "demo" ? `<p class="note">${IN_PREVIEW ? "Aperçu : seules les séances créées dans ce navigateur sont accessibles." : "Mode démonstration : seules les séances créées dans ce navigateur sont accessibles."}</p>` : ""}</form>
+      ${ST.store.kind === "demo" ? `<p class="note">${IN_PREVIEW ? "Aperçu : seules les séances créées dans ce navigateur sont accessibles." : (window.FIREBASE_ERROR ? "Connexion à Firebase impossible. " + window.FIREBASE_ERROR + " " : "") + "Mode démonstration : seules les séances créées dans ce navigateur sont accessibles."}</p>` : ""}</form>
       ${IN_PREVIEW ? `<p class="note preview-link">Aperçu seulement : <a href="#animer">ouvrir la vue d'animation</a>. Ce lien n'existe pas dans la version déployée.</p>` : ""}`, "hero-land");
   $("joinForm").onsubmit = e => { e.preventDefault(); const c = $("joinCode").value.trim().toUpperCase(); if (!/^[A-Z0-9]{4,6}$/.test(c)) { $("joinErr").textContent = "Le code compte 4 caractères, lettres et chiffres."; $("joinCode").focus(); return; } location.hash = c; };
   $("joinCode").focus();
@@ -535,7 +535,7 @@ function renderAdminHome() {
   const list = adminList();
   $("main").innerHTML = hero(`<div class="land-l"><p class="kicker">Animation</p><h1 class="display"><span class="part">PARTIE 1 |</span> Mon portrait de personne utilisatrice</h1><p class="lead">Créez une séance, puis donnez aux personnes participantes le lien ou le code. Gardez cet onglet ouvert pendant l'exercice : c'est lui qui calcule le portrait du groupe et les équipes.</p></div>
     <div class="card join"><h2>Nouvelle séance</h2><button class="btn big block" id="createBtn" type="button">${ico("play")}<span>Créer une séance</span></button>
-      ${ST.store.kind === "demo" ? `<p class="note">${IN_PREVIEW ? "Aperçu : les appareils de la salle ne peuvent pas rejoindre cet aperçu. Utilisez les participants fictifs pour vous exercer." : "Mode démonstration : la séance n'est accessible que dans ce navigateur. Pour la salle, configurez Firebase (voir le guide)."}</p>` : ""}
+      ${ST.store.kind === "demo" ? `<p class="note">${IN_PREVIEW ? "Aperçu : les appareils de la salle ne peuvent pas rejoindre cet aperçu. Utilisez les participants fictifs pour vous exercer." : (window.FIREBASE_ERROR ? "Connexion à Firebase impossible. " + window.FIREBASE_ERROR + " " : "") + "Mode démonstration : la séance n'est accessible que dans ce navigateur. Pour la salle, configurez Firebase (voir le guide)."}</p>` : ""}
       ${list.length ? `<h2 class="sub">Mes séances récentes</h2><ul class="recent">${list.slice(0, 5).map(x => `<li><a href="#animer/${esc(x.code)}"><b>${esc(x.code)}</b><span>${new Date(x.at).toLocaleString("fr-CA", { dateStyle: "medium", timeStyle: "short" })}</span></a></li>`).join("")}</ul>` : ""}</div>`, "hero-land");
   $("createBtn").onclick = async () => {
     const code = Array.from(crypto.getRandomValues(new Uint8Array(4)), b => "ABCDEFGHJKMNPQRSTUVWXYZ23456789"[b % 31]).join("");
